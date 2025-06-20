@@ -1097,6 +1097,19 @@
         </div>
     </div>
 
+    <!-- نافذة عرض التفاصيل -->
+    <div id="detailsModal" class="modal">
+        <div class="modal-content" style="max-width: 700px;">
+            <span class="close-modal" id="closeDetailsModal">&times;</span>
+            <div class="modal-header">
+                <h2><i class="fas fa-info-circle"></i> تفاصيل الطلب</h2>
+            </div>
+            <div class="modal-body">
+                <div id="orderDetailsContent"></div>
+            </div>
+        </div>
+    </div>
+
     <script>
         // بيانات التطبيق
         const users = [
@@ -1173,9 +1186,11 @@
         const loginModal = document.getElementById('loginModal');
         const registerModal = document.getElementById('registerModal');
         const orderModal = document.getElementById('orderModal');
+        const detailsModal = document.getElementById('detailsModal');
         const closeLoginModal = document.getElementById('closeLoginModal');
         const closeRegisterModal = document.getElementById('closeRegisterModal');
         const closeOrderModal = document.getElementById('closeOrderModal');
+        const closeDetailsModal = document.getElementById('closeDetailsModal');
         const showRegisterFromLogin = document.getElementById('showRegisterFromLogin');
         const showLoginFromRegister = document.getElementById('showLoginFromRegister');
         const loginForm = document.getElementById('loginForm');
@@ -1228,6 +1243,10 @@
             orderModal.classList.remove('active');
         });
         
+        closeDetailsModal.addEventListener('click', () => {
+            detailsModal.classList.remove('active');
+        });
+        
         // النقر خارج النموذج لإغلاقه
         window.addEventListener('click', (e) => {
             if (e.target === loginModal) {
@@ -1238,6 +1257,9 @@
             }
             if (e.target === orderModal) {
                 orderModal.classList.remove('active');
+            }
+            if (e.target === detailsModal) {
+                detailsModal.classList.remove('active');
             }
         });
         
@@ -1376,6 +1398,12 @@
             
             const productId = parseInt(document.getElementById('orderProductId').value);
             const product = products.find(p => p.id === productId);
+            const file = orderAttachment.files[0];
+            let proofUrl = '';
+            
+            if (file) {
+                proofUrl = URL.createObjectURL(file);
+            }
             
             const order = {
                 id: orders.length + 1,
@@ -1385,7 +1413,9 @@
                 user: currentUser.username,
                 customerName: document.getElementById('orderName').value,
                 location: document.getElementById('orderLocation').value,
-                proof: fileName.textContent,
+                proof: file ? file.name : 'بدون ملف',
+                proofUrl: proofUrl,
+                attachmentFile: file,
                 status: 'قيد الانتظار',
                 date: new Date().toLocaleString()
             };
@@ -1442,6 +1472,7 @@
                     <td>
                         <button class="action-btn btn-approve" onclick="updateOrderStatus(${order.id}, 'مقبول')">قبول</button>
                         <button class="action-btn btn-reject" onclick="updateOrderStatus(${order.id}, 'مرفوض')">رفض</button>
+                        <button class="action-btn" style="background: var(--info); color: white;" onclick="showOrderDetails(${order.id})">عرض التفاصيل</button>
                     </td>
                 `;
                 
@@ -1494,6 +1525,47 @@
                 userPurchases.appendChild(div);
             });
         }
+        
+        // عرض تفاصيل الطلب
+        window.showOrderDetails = function(orderId) {
+            const order = orders.find(o => o.id === orderId);
+            if (!order) return;
+
+            const detailsContent = document.getElementById('orderDetailsContent');
+            detailsContent.innerHTML = `
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: var(--primary); margin-bottom: 10px;">معلومات الطلب</h3>
+                    <p><strong>رقم الطلب:</strong> ${order.id}</p>
+                    <p><strong>المنتج:</strong> ${order.productName}</p>
+                    <p><strong>المستخدم:</strong> ${order.user}</p>
+                    <p><strong>التاريخ:</strong> ${order.date}</p>
+                    <p><strong>الحالة:</strong> ${order.status}</p>
+                </div>
+                
+                <div style="margin-bottom: 20px;">
+                    <h3 style="color: var(--primary); margin-bottom: 10px;">معلومات العميل</h3>
+                    <p><strong>الاسم:</strong> ${order.customerName}</p>
+                    <p><strong>الموقع:</strong> ${order.location}</p>
+                </div>
+                
+                <div>
+                    <h3 style="color: var(--primary); margin-bottom: 10px;">دليل الشراء</h3>
+                    <p><strong>اسم الملف:</strong> ${order.proof}</p>
+                    
+                    <div id="proofPreview" style="margin-top: 15px; text-align: center;">
+                        ${order.proof.includes('.mp4') || order.proof.includes('.mov') || order.proof.includes('.avi') ? 
+                            `<video controls style="max-width: 100%; max-height: 300px;">
+                                <source src="${order.proofUrl || '#'}" type="video/mp4">
+                                متصفحك لا يدعم تشغيل الفيديو
+                            </video>` :
+                            `<img src="${order.proofUrl || '#'}" style="max-width: 100%; max-height: 300px; border-radius: 8px;" onerror="this.style.display='none'">`
+                        }
+                    </div>
+                </div>
+            `;
+
+            document.getElementById('detailsModal').classList.add('active');
+        };
         
         // تحديث حالة الطلب (يجب أن تكون دالة عامة)
         window.updateOrderStatus = function(orderId, status) {
